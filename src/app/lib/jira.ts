@@ -14,26 +14,6 @@ function getAuthHeader() {
   return `Basic ${credentials}`
 }
 
-async function fetchOnePage(jql: string, fields: string[], startAt: number): Promise<{issues: JiraIssue[], total: number}> {
-  const params = new URLSearchParams({
-    jql,
-    maxResults: '50',
-    startAt: String(startAt),
-    fields: fields.join(','),
-  })
-  const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?${params.toString()}`
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { 'Authorization': getAuthHeader(), 'Accept': 'application/json' },
-  })
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Jira API error ${res.status}: ${err}`)
-  }
-  const data = await res.json()
-  return { issues: data.issues || [], total: data.total || 0 }
-}
-
 async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]> {
   const cacheKey = `${jql}|${fields.join(',')}`
   const cached = cache.get(cacheKey)
@@ -41,21 +21,34 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
     return cached.data as JiraIssue[]
   }
 
-  // Fetch first page to get total
-  const first = await fetchOnePage(jql, fields, 0)
-  const total = first.total
-  const allIssues: JiraIssue[] = [...first.issues]
+  const allIssues: JiraIssue[] = []
+  let nextPageToken: string | undefined = undefined
 
-  // Fetch remaining pages in parallel (max 4 concurrent)
-  if (total > 50) {
-    const startAts = []
-    for (let i = 50; i < total; i += 50) startAts.push(i)
-    // Batch into groups of 4 to avoid overwhelming the API
-    for (let i = 0; i < startAts.length; i += 4) {
-      const batch = startAts.slice(i, i + 4)
-      const results = await Promise.all(batch.map(s => fetchOnePage(jql, fields, s)))
-      results.forEach(r => allIssues.push(...r.issues))
+  // Jira Cloud dùng nextPageToken để phân trang
+  while (true) {
+    const params: Record<string, string> = {
+      jql,
+      maxResults: '100',
+      fields: fields.join(','),
     }
+    if (nextPageToken) params.nextPageToken = nextPageToken
+
+    const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?${new URLSearchParams(params).toString()}`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': getAuthHeader(), 'Accept': 'application/json' },
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Jira API error ${res.status}: ${err}`)
+    }
+
+    const data = await res.json()
+    allIssues.push(...(data.issues || []))
+
+    if (data.isLast || !data.nextPageToken || data.issues?.length === 0) break
+    nextPageToken = data.nextPageToken
   }
 
   cache.set(cacheKey, { data: allIssues, expires: Date.now() + CACHE_TTL })
