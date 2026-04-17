@@ -26,17 +26,20 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
   const maxResults = 100
 
   while (true) {
-    const url = `${JIRA_BASE_URL}/rest/api/3/search/jql`
-    const body = { jql, fields, maxResults, startAt }
+    const params = new URLSearchParams({
+      jql,
+      maxResults: String(maxResults),
+      startAt: String(startAt),
+      fields: fields.join(','),
+    })
+    const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?${params.toString()}`
 
     const res = await fetch(url, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Authorization': getAuthHeader(),
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(body),
     })
 
     if (!res.ok) {
