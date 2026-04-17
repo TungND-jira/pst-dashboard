@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0d0f14;
+  --bg-card: #141720;
+  --bg-card-hover: #1a1e2e;
+  --border: #1f2437;
+  --border-light: #252a3d;
+
+  --text-primary: #e8eaf0;
+  --text-secondary: #7c84a0;
+  --text-muted: #4a5068;
+
+  --accent: #4f8ef7;
+  --accent-dim: #1a2a4a;
+  --green: #2dd4a0;
+  --green-dim: #0d2a20;
+  --red: #f75f5f;
+  --red-dim: #2a1010;
+  --yellow: #f7c04f;
+  --yellow-dim: #2a2010;
+  --purple: #a78bfa;
+  --purple-dim: #1e1a3a;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease forwards;
+}

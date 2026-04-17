@@ -1,0 +1,59 @@
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  transition: border-color 0.2s, background 0.2s;
+  opacity: 0;
+}
+
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.target {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Color variants */
+.green .value { color: var(--green); }
+.green { border-left: 3px solid var(--green); }
+
+.red .value { color: var(--red); }
+.red { border-left: 3px solid var(--red); }
+
+.yellow .value { color: var(--yellow); }
+.yellow { border-left: 3px solid var(--yellow); }
+
+.blue .value { color: var(--accent); }
+.blue { border-left: 3px solid var(--accent); }
+
+.purple .value { color: var(--purple); }
+.purple { border-left: 3px solid var(--purple); }
