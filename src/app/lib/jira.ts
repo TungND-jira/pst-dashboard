@@ -14,6 +14,26 @@ function getAuthHeader() {
   return `Basic ${credentials}`
 }
 
+async function fetchOnePage(jql: string, fields: string[], startAt: number): Promise<{issues: JiraIssue[], total: number}> {
+  const params = new URLSearchParams({
+    jql,
+    maxResults: '50',
+    startAt: String(startAt),
+    fields: fields.join(','),
+  })
+  const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?${params.toString()}`
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': getAuthHeader(), 'Accept': 'application/json' },
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Jira API error ${res.status}: ${err}`)
+  }
+  const data = await res.json()
+  return { issues: data.issues || [], total: data.total || 0 }
+}
+
 async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]> {
   const cacheKey = `${jql}|${fields.join(',')}`
   const cached = cache.get(cacheKey)
@@ -21,37 +41,21 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
     return cached.data as JiraIssue[]
   }
 
-  const allIssues: JiraIssue[] = []
-  let startAt = 0
-  const maxResults = 100
+  // Fetch first page to get total
+  const first = await fetchOnePage(jql, fields, 0)
+  const total = first.total
+  const allIssues: JiraIssue[] = [...first.issues]
 
-  while (true) {
-    const params = new URLSearchParams({
-      jql,
-      maxResults: String(maxResults),
-      startAt: String(startAt),
-      fields: fields.join(','),
-    })
-    const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?${params.toString()}`
-
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': getAuthHeader(),
-        'Accept': 'application/json',
-      },
-    })
-
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Jira API error ${res.status}: ${err}`)
+  // Fetch remaining pages in parallel (max 4 concurrent)
+  if (total > 50) {
+    const startAts = []
+    for (let i = 50; i < total; i += 50) startAts.push(i)
+    // Batch into groups of 4 to avoid overwhelming the API
+    for (let i = 0; i < startAts.length; i += 4) {
+      const batch = startAts.slice(i, i + 4)
+      const results = await Promise.all(batch.map(s => fetchOnePage(jql, fields, s)))
+      results.forEach(r => allIssues.push(...r.issues))
     }
-
-    const data = await res.json()
-    allIssues.push(...data.issues)
-
-    if (allIssues.length >= data.total || data.issues.length === 0) break
-    startAt += maxResults
   }
 
   cache.set(cacheKey, { data: allIssues, expires: Date.now() + CACHE_TTL })
@@ -248,9 +252,8 @@ export function transformIssues(issues: JiraIssue[]): DashboardData {
 // ─── Public fetch functions ───────────────────────────────────────────────────
 
 const COMMON_FIELDS = [
-  'summary', 'status', 'priority', 'created', 'resolutiondate', 'assignee',
-  'customfield_11553', 'customfield_11554', 'customfield_11555',
-  'customfield_14897', 'customfield_10316',
+  'status', 'priority', 'created', 'resolutiondate', 'assignee',
+  'customfield_11553', 'customfield_11554',
 ]
 
 const YEAR = new Date().getFullYear()

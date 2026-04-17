@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 // src/app/api/jira/fnb/route.ts
 import { NextResponse } from 'next/server'
