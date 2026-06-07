@@ -1,22 +1,15 @@
-export const dynamic = 'force-dynamic'
-export const maxDuration = 60
-
 // src/app/api/jira/ps/route.ts
 import { NextResponse } from 'next/server'
-import { getPsData } from '@/app/lib/jira'
+import { getRetailFullData } from '@/app/lib/jira'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET() {
   try {
-    const data = await getPsData()
+    const data = await getRetailFullData()
     return NextResponse.json(data)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('[PS API Error]', message)
+    console.error('[PS API Error]', error)
     return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
-  }
-}
-
-export const revalidate = 300
+      { error: 'Không thể lấy dữ liệu Jira. Kiểm tra lạ

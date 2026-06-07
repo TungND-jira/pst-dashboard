@@ -4,8 +4,8 @@ import ProjectDashboard from './components/ProjectDashboard'
 import styles from './page.module.css'
 
 const TABS = [
-  { id: 'fnb', label: 'FNB PST', api: '/api/jira/fnb', desc: 'Production Bugs · Subteam PST · Project FNB' },
-  { id: 'ps', label: 'PS Project', api: '/api/jira/ps', desc: 'Production Bugs · Project PS' },
+  { id: 'fnb', label: 'PST - FNB', api: '/api/jira/fnb', desc: 'Production Bugs · Support · Project FNB' },
+  { id: 'ps', label: 'PST - Retail', api: '/api/jira/ps', desc: 'Production Bugs · Support · Project PS' },
 ]
 
 export default function Home() {
@@ -66,6 +66,4 @@ export default function Home() {
           projectName={active.label}
         />
       </main>
-    </div>
-  )
-}
+    </
