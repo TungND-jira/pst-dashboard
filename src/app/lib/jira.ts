@@ -1,5 +1,5 @@
 // src/app/lib/jira.ts
-// Server-side only — credentials never reach the browser
+// Server-side only -- credentials never reach the browser
 
 const JIRA_BASE_URL = process.env.JIRA_BASE_URL!
 const JIRA_EMAIL = process.env.JIRA_EMAIL!
@@ -42,7 +42,7 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
   return allIssues
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// --- Types ---
 
 export interface JiraIssue {
   id: string
@@ -69,7 +69,7 @@ export interface BugMetrics {
   slaPassRate: number
   pending: number
   persistent: number   // open > 14 days
-  cycleTime: number    // avg days created → resolved
+  cycleTime: number    // avg days created to resolved
 }
 
 export interface SupportMetrics {
@@ -85,7 +85,7 @@ export interface SupportMetrics {
 export interface DailyMetrics {
   bugNewInDay: number
   spNewInDay: number
-  wipBug: number       // open bugs / distinct assignees
+  wipBug: number
   wipSupport: number
   bugResolvedCreatedRatio: number | null
   spResolvedCreatedRatio: number | null
@@ -121,7 +121,7 @@ export interface FullDashboardData {
   lastUpdated: string
 }
 
-// ─── SLA helpers ─────────────────────────────────────────────────────────────
+// --- SLA helpers ---
 
 const SLA_DAYS: Record<string, number> = { Highest: 2, High: 7, Medium: 12, Low: 15 }
 
@@ -156,10 +156,9 @@ function getMonthKey(dateStr: string): string {
   return dateStr.slice(0, 7)
 }
 
-// ─── Issue type classification ────────────────────────────────────────────────
+// --- Issue type classification ---
 
 const BUG_TYPES = new Set(['Production Bug', 'RW_Production Bug', 'Bug'])
-const SUPPORT_TYPES = new Set(['RW_Task', 'Task', 'Support', 'Support Request'])
 
 function splitByType(issues: JiraIssue[]) {
   const bugs = issues.filter(i => BUG_TYPES.has(i.fields.issuetype?.name))
@@ -167,7 +166,7 @@ function splitByType(issues: JiraIssue[]) {
   return { bugs, support }
 }
 
-// ─── Metric computations ──────────────────────────────────────────────────────
+// --- Metric computations ---
 
 function computeBugMetrics(bugs: JiraIssue[]): BugMetrics {
   if (!bugs.length) return { total: 0, resolved: 0, resolvedPct: 0, slaPassRate: 0, pending: 0, persistent: 0, cycleTime: 0 }
@@ -239,4 +238,127 @@ function computeDailyMetrics(bugs: JiraIssue[], support: JiraIssue[]): DailyMetr
 function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[]): ChartData {
   // Bugs by week
   const weekMap: Record<string, number> = {}
-  bugs.forEach(i => { const w = getWeekKey(i.fields.created); weekMap[w] = (weekMap[w]
+  bugs.forEach(i => { const w = getWeekKey(i.fields.created); weekMap[w] = (weekMap[w] || 0) + 1 })
+  const bugsByWeek = Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b)).map(([week, count]) => ({ week, count }))
+
+  // Bugs by month
+  const monthMap: Record<string, number> = {}
+  bugs.forEach(i => { const m = getMonthKey(i.fields.created); monthMap[m] = (monthMap[m] || 0) + 1 })
+  const bugsByMonth = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count }))
+
+  // Bugs by cause
+  const bugsByCause: Record<string, number> = {}
+  bugs.forEach(i => {
+    const c = i.fields.customfield_11554?.value || 'Unclassified'
+    bugsByCause[c] = (bugsByCause[c] || 0) + 1
+  })
+
+  // Subteam performance
+  const subteamMap: Record<string, SubteamStat> = {}
+  allIssues.forEach(i => {
+    const team = i.fields.customfield_14897?.value
+      || i.fields.customfield_11553?.value
+      || i.fields.assignee?.displayName
+      || 'Other'
+    if (!subteamMap[team]) subteamMap[team] = { name: team, bugs: 0, support: 0, resolved: 0 }
+    if (BUG_TYPES.has(i.fields.issuetype?.name)) subteamMap[team].bugs++
+    else subteamMap[team].support++
+    if (i.fields.status?.statusCategory?.key === 'done') subteamMap[team].resolved++
+  })
+  const subteamPerformance = Object.values(subteamMap)
+    .sort((a, b) => (b.bugs + b.support) - (a.bugs + a.support))
+    .slice(0, 8)
+
+  // Resolved vs created by month
+  const rcMonth: Record<string, { resolved: number; created: number }> = {}
+  bugs.forEach(i => {
+    const cm = getMonthKey(i.fields.created)
+    if (!rcMonth[cm]) rcMonth[cm] = { resolved: 0, created: 0 }
+    rcMonth[cm].created++
+    if (i.fields.resolutiondate) {
+      const rm = getMonthKey(i.fields.resolutiondate)
+      if (!rcMonth[rm]) rcMonth[rm] = { resolved: 0, created: 0 }
+      rcMonth[rm].resolved++
+    }
+  })
+  const resolvedVsCreatedByMonth = Object.entries(rcMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, v]) => ({ month, ...v }))
+
+  // Resolved vs created by week (last 12 weeks)
+  const rcWeek: Record<string, { resolved: number; created: number }> = {}
+  bugs.forEach(i => {
+    const cw = getWeekKey(i.fields.created)
+    if (!rcWeek[cw]) rcWeek[cw] = { resolved: 0, created: 0 }
+    rcWeek[cw].created++
+    if (i.fields.resolutiondate) {
+      const rw = getWeekKey(i.fields.resolutiondate)
+      if (!rcWeek[rw]) rcWeek[rw] = { resolved: 0, created: 0 }
+      rcWeek[rw].resolved++
+    }
+  })
+  const resolvedVsCreatedByWeek = Object.entries(rcWeek)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([week, v]) => ({ week, ...v }))
+
+  // Persistent vs pending by month
+  const pvpMonth: Record<string, { persistent: number; pending: number }> = {}
+  bugs.forEach(i => {
+    const m = getMonthKey(i.fields.created)
+    if (!pvpMonth[m]) pvpMonth[m] = { persistent: 0, pending: 0 }
+    const isOpen = i.fields.status?.statusCategory?.key !== 'done'
+    if (isOpen) {
+      pvpMonth[m].pending++
+      if (Date.now() - new Date(i.fields.created).getTime() > 14 * 86400000) pvpMonth[m].persistent++
+    }
+  })
+  const persistentVsPending = Object.entries(pvpMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, v]) => ({ label, ...v }))
+
+  return { bugsByWeek, bugsByMonth, bugsByCause, subteamPerformance, resolvedVsCreatedByMonth, resolvedVsCreatedByWeek, persistentVsPending }
+}
+
+// --- Public fetch functions ---
+
+const COMMON_FIELDS = [
+  'summary', 'status', 'priority', 'created', 'resolutiondate', 'assignee', 'issuetype',
+  'customfield_11553', 'customfield_11554', 'customfield_14897', 'customfield_10316',
+]
+
+export async function getFnbFullData(): Promise<FullDashboardData> {
+  const overallJql = `project = FNB AND labels = "from-crm" ORDER BY created DESC`
+  const pstJql = `project = FNB AND labels = "from-crm" AND "subteam_fnb[dropdown]" = PST ORDER BY created DESC`
+
+  const [overallIssues, pstIssues] = await Promise.all([
+    fetchJiraJQL(overallJql, COMMON_FIELDS),
+    fetchJiraJQL(pstJql, COMMON_FIELDS),
+  ])
+
+  const { bugs: oBugs, support: oSp } = splitByType(overallIssues)
+  const { bugs: pBugs, support: pSp } = splitByType(pstIssues)
+
+  return {
+    overall: { bugs: computeBugMetrics(oBugs), support: computeSupportMetrics(oSp), daily: computeDailyMetrics(oBugs, oSp) },
+    pst: { bugs: computeBugMetrics(pBugs), support: computeSupportMetrics(pSp), daily: computeDailyMetrics(pBugs, pSp) },
+    charts: computeChartData(overallIssues, oBugs),
+    lastUpdated: new Date().toISOString(),
+  }
+}
+
+export async function getRetailFullData(): Promise<FullDashboardData> {
+  const year = new Date().getFullYear()
+  const jql = `created >= "${year}-01-01" AND project = PS AND type IN ("Production Bug","RW_Production Bug", RW_Task, Task) ORDER BY created DESC`
+
+  const allIssues = await fetchJiraJQL(jql, COMMON_FIELDS)
+  const { bugs, support } = splitByType(allIssues)
+
+  // PS project is fully managed by PST team -- overall = pst
+  return {
+    overall: { bugs: computeBugMetrics(bugs), support: computeSupportMetrics(support), daily: computeDailyMetrics(bugs, support) },
+    pst: { bugs: computeBugMetrics(bugs), support: computeSupportMetrics(support), daily: computeDailyMetrics(bugs, support) },
+    charts: computeChartData(allIssues, bugs),
+    lastUpdated: new Date().toISOString(),
+  }
+}

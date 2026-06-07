@@ -4,8 +4,8 @@ import ProjectDashboard from './components/ProjectDashboard'
 import styles from './page.module.css'
 
 const TABS = [
-  { id: 'fnb', label: 'PST - FNB', api: '/api/jira/fnb', desc: 'Production Bugs · Support · Project FNB' },
-  { id: 'ps', label: 'PST - Retail', api: '/api/jira/ps', desc: 'Production Bugs · Support · Project PS' },
+  { id: 'fnb', label: 'PST - FNB', api: '/api/jira/fnb', desc: 'Production Bugs - Support - Project FNB' },
+  { id: 'ps', label: 'PST - Retail', api: '/api/jira/ps', desc: 'Production Bugs - Support - Project PS' },
 ]
 
 export default function Home() {
@@ -17,7 +17,7 @@ export default function Home() {
       {/* Sidebar */}
       <aside className={styles.sidebar}>
         <div className={styles.logo}>
-          <div className={styles.logoIcon}>◆</div>
+          <div className={styles.logoIcon}>*</div>
           <div>
             <div className={styles.logoTitle}>PST Dashboard</div>
             <div className={styles.logoSub}>Quality Report</div>
@@ -44,7 +44,7 @@ export default function Home() {
         <div className={styles.sidebarFooter}>
           <div className={styles.footerItem}>
             <span className={styles.statusDot} />
-            Live · citigo.atlassian.net
+            Live - citigo.atlassian.net
           </div>
           <div className={styles.footerYear}>{new Date().getFullYear()}</div>
         </div>
@@ -66,4 +66,6 @@ export default function Home() {
           projectName={active.label}
         />
       </main>
-    </
+    </div>
+  )
+}

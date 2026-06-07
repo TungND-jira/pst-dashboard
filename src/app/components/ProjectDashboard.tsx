@@ -24,7 +24,7 @@ const CHART_BASE = {
   },
 }
 
-// ─── Metric tile ─────────────────────────────────────────────────────────────
+// --- Metric tile ---
 
 function Tile({ label, value, sub, variant = 'default' }: {
   label: string; value: string | number; sub?: string
@@ -42,7 +42,7 @@ function Tile({ label, value, sub, variant = 'default' }: {
 function BugRow({ m }: { m: BugMetrics }) {
   return (
     <div className={styles.metricsRow}>
-      <Tile label="TỔNG BUG" value={m.total} variant="bug" />
+      <Tile label="TOTAL BUGS" value={m.total} variant="bug" />
       <Tile label="RESOLVED" value={`${m.resolved}/${m.resolvedPct}%`} variant="bug" />
       <Tile label="SLA PASS RATE" value={`${m.slaPassRate}%`} sub="JQL" variant="bug" />
       <Tile label="PENDING" value={`${m.pending} tks`} sub="10%" variant="bug" />
@@ -55,19 +55,19 @@ function BugRow({ m }: { m: BugMetrics }) {
 function SupportRow({ m }: { m: SupportMetrics }) {
   return (
     <div className={styles.metricsRow}>
-      <Tile label="TỔNG SUPPORT" value={m.total} variant="support" />
+      <Tile label="TOTAL SUPPORT" value={m.total} variant="support" />
       <Tile label="RESOLVED" value={`${m.resolved}/${m.resolvedPct}%`} variant="support" />
       <Tile label="THROUGHPUT" value={`${m.throughput} tks/week`} sub="ratio" variant="support" />
       <Tile label="PENDING" value={`${m.pending} tks`} sub="10%" variant="support" />
       <Tile label="TICKET/WEEK" value={`${m.ticketPerWeek} tks`} sub="ratio" variant="support" />
-      <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} sub="tăng/giảm" variant="support" />
+      <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} sub="change" variant="support" />
     </div>
   )
 }
 
 function DailyRow({ m }: { m: DailyMetrics }) {
-  const bugRatio = m.bugResolvedCreatedRatio !== null ? m.bugResolvedCreatedRatio.toFixed(2) : '—'
-  const spRatio = m.spResolvedCreatedRatio !== null ? m.spResolvedCreatedRatio.toFixed(2) : '—'
+  const bugRatio = m.bugResolvedCreatedRatio !== null ? m.bugResolvedCreatedRatio.toFixed(2) : '--'
+  const spRatio = m.spResolvedCreatedRatio !== null ? m.spResolvedCreatedRatio.toFixed(2) : '--'
   return (
     <div className={styles.metricsRow}>
       <Tile label="WIP BUG" value={`${m.wipBug} tks/per`} variant="wip" />
@@ -89,7 +89,7 @@ function SectionHeading({ title }: { title: string }) {
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// --- Main component ---
 
 export default function ProjectDashboard({ apiPath }: { apiPath: string; projectName: string }) {
   const [data, setData] = useState<FullDashboardData | null>(null)
@@ -106,7 +106,7 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
       if (json.error) throw new Error(json.error)
       setData(json); setLastFetch(new Date())
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Lỗi không xác định')
+      setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -117,15 +117,15 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
   if (loading) return (
     <div className={styles.loading}>
       <div className={styles.spinner} />
-      <p>Đang tải dữ liệu từ Jira...</p>
+      <p>Loading data from Jira...</p>
     </div>
   )
 
   if (error) return (
     <div className={styles.errorState}>
-      <div className={styles.errorIcon}>⚠</div>
+      <div className={styles.errorIcon}>!</div>
       <p>{error}</p>
-      <button onClick={fetchData} className={styles.retryBtn}>Thử lại</button>
+      <button onClick={fetchData} className={styles.retryBtn}>Retry</button>
     </div>
   )
 
@@ -133,15 +133,15 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
 
   const { overall, pst, charts } = data
 
-  // ── Chart data ──────────────────────────────────────────────────────────────
+  // -- Chart data --
   const bugMonthData = {
     labels: charts.bugsByMonth.map(d => d.month.slice(5)),
-    datasets: [{ label: 'Bug/tháng', data: charts.bugsByMonth.map(d => d.count), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.12)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#a78bfa' }],
+    datasets: [{ label: 'Bug/month', data: charts.bugsByMonth.map(d => d.count), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.12)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#a78bfa' }],
   }
 
   const bugWeekData = {
     labels: charts.bugsByWeek.slice(-12).map(d => d.week.slice(5)),
-    datasets: [{ label: 'Bug/tuần', data: charts.bugsByWeek.slice(-12).map(d => d.count), borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.12)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#4f8ef7' }],
+    datasets: [{ label: 'Bug/week', data: charts.bugsByWeek.slice(-12).map(d => d.count), borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.12)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#4f8ef7' }],
   }
 
   const causeEntries = Object.entries(charts.bugsByCause).sort(([, a], [, b]) => b - a).slice(0, 8)
@@ -151,7 +151,7 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
   }
 
   const subteamData = {
-    labels: charts.subteamPerformance.map(s => s.name.length > 12 ? s.name.slice(0, 11) + '…' : s.name),
+    labels: charts.subteamPerformance.map(s => s.name.length > 12 ? s.name.slice(0, 11) + '...' : s.name),
     datasets: [
       { label: 'Bug', data: charts.subteamPerformance.map(s => s.bugs), backgroundColor: 'rgba(167,139,250,0.8)', borderRadius: 3 },
       { label: 'Support', data: charts.subteamPerformance.map(s => s.support), backgroundColor: 'rgba(45,212,160,0.8)', borderRadius: 3 },
@@ -186,3 +186,84 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
   const doughnutOpts = {
     ...CHART_BASE, scales: undefined,
     plugins: { ...CHART_BASE.plugins, legend: { ...CHART_BASE.plugins.legend, position: 'bottom' as const } },
+  }
+
+  return (
+    <div className={styles.dashboard}>
+      {/* Topbar */}
+      <div className={styles.topbar}>
+        <div className={styles.meta}>
+          {lastFetch && <span>Updated: {lastFetch.toLocaleTimeString()}</span>}
+          <span className={styles.dot} />
+          <span>Cache 5min</span>
+        </div>
+        <button onClick={fetchData} className={styles.refreshBtn}>Refresh</button>
+      </div>
+
+      {/* OVERALL */}
+      <SectionHeading title="OVERALL" />
+      <BugRow m={overall.bugs} />
+      <SupportRow m={overall.support} />
+
+      {/* PST */}
+      <SectionHeading title="PST" />
+      <BugRow m={pst.bugs} />
+      <SupportRow m={pst.support} />
+      <DailyRow m={pst.daily} />
+
+      {/* BUG CROSS SECTION */}
+      <SectionHeading title="BUG CROSS SECTION" />
+
+      <div className={styles.chartRow}>
+        <div className={`${styles.chartCard} ${styles.chartFull}`}>
+          <div className={styles.chartTitle}>Subteam Performance</div>
+          <div className={styles.chartWrap} style={{ height: 220 }}>
+            <Bar data={subteamData} options={CHART_BASE as never} />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.chartRow}>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Bug trend by month</div>
+          <div className={styles.chartWrap}>
+            <Line data={bugMonthData} options={CHART_BASE as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Bug trend by week</div>
+          <div className={styles.chartWrap}>
+            <Line data={bugWeekData} options={CHART_BASE as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Bug cause distribution</div>
+          <div className={styles.chartWrap}>
+            <Doughnut data={causeData} options={doughnutOpts as never} />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.chartRow}>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Resolved vs Created ratio (Month)</div>
+          <div className={styles.chartWrap}>
+            <Bar data={rcMonthData} options={CHART_BASE as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Resolved / Created (Week)</div>
+          <div className={styles.chartWrap}>
+            <Line data={rcWeekData} options={CHART_BASE as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Persistent &amp; Pending Bug</div>
+          <div className={styles.chartWrap}>
+            <Bar data={pvpData} options={CHART_BASE as never} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

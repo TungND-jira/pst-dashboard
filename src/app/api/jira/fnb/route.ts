@@ -12,7 +12,8 @@ export async function GET() {
   } catch (error) {
     console.error('[FNB API Error]', error)
     return NextResponse.json(
-      { error: 'Không thể lấy dữ liệu Jira. Kiểm tra lại credentials.' },
+      { error: 'Unable to fetch Jira data. Check credentials.' },
       { status: 500 }
     )
- 
+  }
+}
