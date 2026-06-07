@@ -10,10 +10,8 @@ export async function GET() {
     const data = await getRetailFullData()
     return NextResponse.json(data)
   } catch (error) {
-    console.error('[PS API Error]', error)
-    return NextResponse.json(
-      { error: 'Unable to fetch Jira data. Check credentials.' },
-      { status: 500 }
-    )
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[PS API Error]', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
