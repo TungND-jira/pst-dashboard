@@ -18,10 +18,13 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
   if (cached && cached.expires > Date.now()) return cached.data as JiraIssue[]
 
   const allIssues: JiraIssue[] = []
-  let startAt = 0
+  let nextPageToken: string | undefined = undefined
   const maxResults = 100
 
   while (true) {
+    const body: Record<string, unknown> = { jql, fields, maxResults }
+    if (nextPageToken) body.nextPageToken = nextPageToken
+
     const res = await fetch(`${JIRA_BASE_URL}/rest/api/3/search/jql`, {
       method: 'POST',
       headers: {
@@ -29,13 +32,13 @@ async function fetchJiraJQL(jql: string, fields: string[]): Promise<JiraIssue[]>
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ jql, fields, maxResults, startAt }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) throw new Error(`Jira API ${res.status}: ${await res.text()}`)
     const data = await res.json()
-    allIssues.push(...data.issues)
-    if (allIssues.length >= data.total || data.issues.length === 0) break
-    startAt += maxResults
+    allIssues.push(...(data.issues ?? []))
+    if (!data.nextPageToken || data.issues.length === 0) break
+    nextPageToken = data.nextPageToken
   }
 
   cache.set(cacheKey, { data: allIssues, expires: Date.now() + CACHE_TTL })
