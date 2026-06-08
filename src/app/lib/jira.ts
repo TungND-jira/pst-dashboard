@@ -566,4 +566,8 @@ export async function getRetailFullData(): Promise<FullDashboardData> {
       daily: computeDailyMetrics(pBugs, pSp),
     },
     charts: computeChartData(overallIssues, oBugs,
-      (i) => i.fields.customfield_14897?.value || i.fields.assignee?.
+      (i) => i.fields.customfield_14897?.value || i.fields.assignee?.displayName || 'Other'
+    ),
+    lastUpdated: new Date().toISOString(),
+  }
+}
