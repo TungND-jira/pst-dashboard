@@ -129,8 +129,8 @@ function DailyRow({ m }: { m: DailyMetrics }) {
 // --- Subteam monthly table ---
 
 function SubteamTable({ rows }: { rows: SubteamMonthly[] }) {
-  const months = [...new Set(rows.map(r => r.month))].sort()
-  const teams = [...new Set(rows.map(r => r.subteam))].sort()
+  const months = Array.from(new Set(rows.map(r => r.month))).sort()
+  const teams = Array.from(new Set(rows.map(r => r.subteam))).sort()
   const latest = months[months.length - 1]
   const latestRows = rows.filter(r => r.month === latest)
     .sort((a, b) => b.total - a.total)
@@ -250,8 +250,8 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
   }
 
   // Subteam monthly: grouped bars, one dataset per subteam, showing total per month
-  const subteamNames = [...new Set(charts.subteamMonthly.map(r => r.subteam))].sort()
-  const subteamMonths = [...new Set(charts.subteamMonthly.map(r => r.month))].sort().slice(-6)
+  const subteamNames = Array.from(new Set(charts.subteamMonthly.map(r => r.subteam))).sort()
+  const subteamMonths = Array.from(new Set(charts.subteamMonthly.map(r => r.month))).sort().slice(-6)
   const subteamMonthlyData = {
     labels: subteamMonths.map(m => m.slice(5)),
     datasets: subteamNames.slice(0, 8).map((team, idx) => ({
@@ -456,7 +456,4 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
             <Line data={ctMonthData} options={CHART_BASE as never} />
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+  
