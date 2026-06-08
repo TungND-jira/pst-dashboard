@@ -64,7 +64,8 @@ export interface JiraIssue {
     assignee: { displayName: string } | null
     customfield_11553?: { value: string } | null  // Module FnB
     customfield_11554?: { value: string } | null  // Bug Cause FnB
-    customfield_14897?: { value: string } | null  // Area / Subteam
+    customfield_14897?: { value: string } | null  // Area (Retail)
+    customfield_17194?: { value: string } | null  // Subteam_FnB
     customfield_10316?: string | null             // InProgress start
   }
 }
@@ -350,7 +351,7 @@ function computeDailyMetrics(bugs: JiraIssue[], support: JiraIssue[]): DailyMetr
   }
 }
 
-function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[]): ChartData {
+function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[], getSubteam: (i: JiraIssue) => string): ChartData {
   // Bugs by week
   const weekMap: Record<string, number> = {}
   bugs.forEach(i => { const w = getWeekKey(i.fields.created); weekMap[w] = (weekMap[w] || 0) + 1 })
@@ -371,10 +372,7 @@ function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[]): ChartData 
   // Subteam performance (summary)
   const subteamMap: Record<string, SubteamStat> = {}
   allIssues.forEach(i => {
-    const team = i.fields.customfield_14897?.value
-      || i.fields.customfield_11553?.value
-      || i.fields.assignee?.displayName
-      || 'Other'
+    const team = getSubteam(i)
     if (!subteamMap[team]) subteamMap[team] = { name: team, bugs: 0, support: 0, resolved: 0 }
     if (BUG_TYPES.has(i.fields.issuetype?.name)) subteamMap[team].bugs++
     else subteamMap[team].support++
@@ -441,10 +439,7 @@ function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[]): ChartData 
   // Subteam monthly breakdown
   const smMap: Record<string, SubteamMonthly> = {}
   allIssues.forEach(i => {
-    const team = i.fields.customfield_14897?.value
-      || i.fields.customfield_11553?.value
-      || i.fields.assignee?.displayName
-      || 'Other'
+    const team = getSubteam(i)
     const month = getMonthKey(i.fields.created)
     const key = `${month}|${team}`
     if (!smMap[key]) smMap[key] = { month, subteam: team, bugs: 0, support: 0, resolved: 0, total: 0, slaPass: 0 }
@@ -513,7 +508,7 @@ function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[]): ChartData 
 
 const COMMON_FIELDS = [
   'summary', 'status', 'priority', 'created', 'resolutiondate', 'assignee', 'issuetype',
-  'customfield_11553', 'customfield_11554', 'customfield_14897', 'customfield_10316',
+  'customfield_11553', 'customfield_11554', 'customfield_14897', 'customfield_17194', 'customfield_10316',
 ]
 
 export async function getFnbFullData(): Promise<FullDashboardData> {
@@ -539,7 +534,9 @@ export async function getFnbFullData(): Promise<FullDashboardData> {
       support: computeSupportMetrics(pSp, pstJql),
       daily: computeDailyMetrics(pBugs, pSp),
     },
-    charts: computeChartData(overallIssues, oBugs),
+    charts: computeChartData(overallIssues, oBugs,
+      (i) => i.fields.customfield_17194?.value || i.fields.assignee?.displayName || 'Other'
+    ),
     lastUpdated: new Date().toISOString(),
   }
 }
@@ -568,7 +565,5 @@ export async function getRetailFullData(): Promise<FullDashboardData> {
       support: computeSupportMetrics(pSp, pstJql),
       daily: computeDailyMetrics(pBugs, pSp),
     },
-    charts: computeChartData(overallIssues, oBugs),
-    lastUpdated: new Date().toISOString(),
-  }
-}
+    charts: computeChartData(overallIssues, oBugs,
+      (i) => i.fields.customfield_14897?.value || i.fields.assignee?.
