@@ -43,7 +43,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 24px 0 14px;
+  margin: 28px 0 12px;
 }
 
 .sectionTitle {
@@ -60,6 +60,16 @@
   background: var(--border-light);
 }
 
+/* Sub-title between metric rows */
+.subTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 10px 0 6px;
+}
+
 /* Metrics row - 6 columns */
 .metricsRow {
   display: grid;
@@ -70,6 +80,15 @@
 
 @media (max-width: 1100px) { .metricsRow { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 700px)  { .metricsRow { grid-template-columns: repeat(2, 1fr); } }
+
+/* Tile link wrapper */
+.tileLink {
+  text-decoration: none;
+  display: block;
+  border-radius: var(--radius-sm);
+  transition: transform 0.15s;
+}
+.tileLink:hover { transform: translateY(-2px); }
 
 /* Tile variants */
 .tile {
@@ -101,10 +120,41 @@
   line-height: 1.2;
 }
 
+.tileFooter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 14px;
+}
+
 .tileSub {
   font-size: 10px;
   color: rgba(232,234,240,0.4);
   letter-spacing: 0.03em;
+}
+
+.tileDelta {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.deltaPos {
+  color: #f75f5f;
+  background: rgba(247,95,95,0.12);
+}
+
+.deltaNeg {
+  color: #2dd4a0;
+  background: rgba(45,212,160,0.12);
+}
+
+.deltaFlat {
+  color: rgba(232,234,240,0.4);
+  background: rgba(232,234,240,0.06);
 }
 
 /* Chart rows */
@@ -138,6 +188,55 @@
 .chartWrap {
   height: 200px;
   position: relative;
+}
+
+/* Subteam table */
+.subteamTableWrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+}
+
+.subteamTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.subteamTable th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(232,234,240,0.45);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.subteamTable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(31,36,55,0.6);
+  color: var(--text-primary);
+}
+
+.subteamTable tr:last-child td {
+  border-bottom: none;
+}
+
+.subteamTable tr:hover td {
+  background: rgba(167,139,250,0.05);
+}
+
+.tableNote {
+  font-size: 10px;
+  color: rgba(232,234,240,0.3);
+  margin-top: 10px;
+  letter-spacing: 0.03em;
 }
 
 /* States */

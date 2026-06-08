@@ -5,12 +5,13 @@ import {
   PointElement, ArcElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
-import type { FullDashboardData, BugMetrics, SupportMetrics, DailyMetrics } from '@/app/lib/jira'
+import type { FullDashboardData, BugMetrics, SupportMetrics, DailyMetrics, SubteamMonthly } from '@/app/lib/jira'
 import styles from './ProjectDashboard.module.css'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler)
 
-const COLORS = ['#a78bfa', '#4f8ef7', '#2dd4a0', '#f7c04f', '#f75f5f', '#fb923c', '#34d399', '#60a5fa']
+const COLORS = ['#a78bfa', '#4f8ef7', '#2dd4a0', '#f7c04f', '#f75f5f', '#fb923c', '#34d399', '#60a5fa', '#e879f9', '#38bdf8']
+const SUBTEAM_COLORS = ['#a78bfa', '#4f8ef7', '#2dd4a0', '#f7c04f', '#f75f5f', '#fb923c', '#34d399', '#60a5fa']
 const CHART_BASE = {
   responsive: true,
   maintainAspectRatio: false,
@@ -24,44 +25,89 @@ const CHART_BASE = {
   },
 }
 
+// --- Delta badge ---
+
+function deltaBadge(current: number, prev: number): { pct: number | null; cls: string } {
+  if (prev === 0) return { pct: null, cls: '' }
+  const pct = Math.round((current - prev) / prev * 100)
+  return { pct, cls: pct > 0 ? styles.deltaPos : pct < 0 ? styles.deltaNeg : styles.deltaFlat }
+}
+
 // --- Metric tile ---
 
-function Tile({ label, value, sub, variant = 'default' }: {
-  label: string; value: string | number; sub?: string
+function Tile({ label, value, sub, variant = 'default', href, weekCurrent, weekPrev }: {
+  label: string
+  value: string | number
+  sub?: string
   variant?: 'bug' | 'support' | 'wip' | 'daily' | 'default'
+  href?: string
+  weekCurrent?: number
+  weekPrev?: number
 }) {
-  return (
+  const { pct, cls } = (weekCurrent !== undefined && weekPrev !== undefined)
+    ? deltaBadge(weekCurrent, weekPrev)
+    : { pct: null, cls: '' }
+
+  const inner = (
     <div className={`${styles.tile} ${styles['tile_' + variant]}`}>
       <div className={styles.tileLabel}>{label}</div>
       <div className={styles.tileValue}>{value}</div>
-      {sub && <div className={styles.tileSub}>{sub}</div>}
+      <div className={styles.tileFooter}>
+        {sub && <span className={styles.tileSub}>{sub}</span>}
+        {pct !== null && (
+          <span className={`${styles.tileDelta} ${cls}`}>
+            {pct > 0 ? '+' : ''}{pct}% vs last wk
+          </span>
+        )}
+      </div>
     </div>
+  )
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={styles.tileLink}>
+        {inner}
+      </a>
+    )
+  }
+  return inner
+}
+
+// --- Metric rows ---
+
+function BugRow({ m, title }: { m: BugMetrics; title?: string }) {
+  return (
+    <>
+      {title && <div className={styles.subTitle}>{title}</div>}
+      <div className={styles.metricsRow}>
+        <Tile label="TOTAL BUGS" value={m.total} variant="bug" href={m.jqlTotal}
+          weekCurrent={m.weeklyCreated} weekPrev={m.prevWeekCreated} />
+        <Tile label="RESOLVED" value={`${m.resolved} / ${m.resolvedPct}%`} variant="bug" href={m.jqlTotal}
+          weekCurrent={m.weeklyResolved} weekPrev={m.prevWeekResolved} />
+        <Tile label="SLA PASS RATE" value={`${m.slaPassRate}%`} variant="bug" />
+        <Tile label="PENDING" value={`${m.pending} tks`} variant="bug" href={m.jqlPending} />
+        <Tile label="PERSISTENT >14d" value={`${m.persistent} tks`} variant="bug" href={m.jqlPersistent} />
+        <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} variant="bug" />
+      </div>
+    </>
   )
 }
 
-function BugRow({ m }: { m: BugMetrics }) {
+function SupportRow({ m, title }: { m: SupportMetrics; title?: string }) {
   return (
-    <div className={styles.metricsRow}>
-      <Tile label="TOTAL BUGS" value={m.total} variant="bug" />
-      <Tile label="RESOLVED" value={`${m.resolved}/${m.resolvedPct}%`} variant="bug" />
-      <Tile label="SLA PASS RATE" value={`${m.slaPassRate}%`} sub="JQL" variant="bug" />
-      <Tile label="PENDING" value={`${m.pending} tks`} sub="10%" variant="bug" />
-      <Tile label="PERSISTENT (>14d)" value={`${m.persistent} tks`} sub="JQL" variant="bug" />
-      <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} sub="Ratio" variant="bug" />
-    </div>
-  )
-}
-
-function SupportRow({ m }: { m: SupportMetrics }) {
-  return (
-    <div className={styles.metricsRow}>
-      <Tile label="TOTAL SUPPORT" value={m.total} variant="support" />
-      <Tile label="RESOLVED" value={`${m.resolved}/${m.resolvedPct}%`} variant="support" />
-      <Tile label="THROUGHPUT" value={`${m.throughput} tks/week`} sub="ratio" variant="support" />
-      <Tile label="PENDING" value={`${m.pending} tks`} sub="10%" variant="support" />
-      <Tile label="TICKET/WEEK" value={`${m.ticketPerWeek} tks`} sub="ratio" variant="support" />
-      <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} sub="change" variant="support" />
-    </div>
+    <>
+      {title && <div className={styles.subTitle}>{title}</div>}
+      <div className={styles.metricsRow}>
+        <Tile label="TOTAL SUPPORT" value={m.total} variant="support" href={m.jqlTotal}
+          weekCurrent={m.weeklyCreated} weekPrev={m.prevWeekCreated} />
+        <Tile label="RESOLVED" value={`${m.resolved} / ${m.resolvedPct}%`} variant="support" href={m.jqlTotal}
+          weekCurrent={m.weeklyResolved} weekPrev={m.prevWeekResolved} />
+        <Tile label="THROUGHPUT" value={`${m.throughput} tks/wk`} variant="support" />
+        <Tile label="PENDING" value={`${m.pending} tks`} variant="support" href={m.jqlPending} />
+        <Tile label="TICKET/WEEK" value={`${m.ticketPerWeek} tks`} variant="support" />
+        <Tile label="CYCLE TIME" value={`${m.cycleTime}d`} variant="support" />
+      </div>
+    </>
   )
 }
 
@@ -70,12 +116,55 @@ function DailyRow({ m }: { m: DailyMetrics }) {
   const spRatio = m.spResolvedCreatedRatio !== null ? m.spResolvedCreatedRatio.toFixed(2) : '--'
   return (
     <div className={styles.metricsRow}>
-      <Tile label="WIP BUG" value={`${m.wipBug} tks/per`} variant="wip" />
-      <Tile label="WIP SUPPORT" value={`${m.wipSupport} tks/per`} variant="wip" />
-      <Tile label="BUG NEW IN DAY" value={`${m.bugNewInDay} tickets`} variant="daily" />
-      <Tile label="RESOLVED/CREATED IN DAY" value={bugRatio} sub="bug" variant="daily" />
-      <Tile label="SP NEW IN DAY" value={`${m.spNewInDay} tickets`} variant="daily" />
-      <Tile label="RESOLVED/CREATED IN DAY" value={spRatio} sub="support" variant="daily" />
+      <Tile label="WIP BUG" value={`${m.wipBug} tks/person`} variant="wip" />
+      <Tile label="WIP SUPPORT" value={`${m.wipSupport} tks/person`} variant="wip" />
+      <Tile label="BUG NEW TODAY" value={`${m.bugNewInDay} tickets`} variant="daily" />
+      <Tile label="BUG RESOLVED/CREATED" value={bugRatio} sub="today" variant="daily" />
+      <Tile label="SP NEW TODAY" value={`${m.spNewInDay} tickets`} variant="daily" />
+      <Tile label="SP RESOLVED/CREATED" value={spRatio} sub="today" variant="daily" />
+    </div>
+  )
+}
+
+// --- Subteam monthly table ---
+
+function SubteamTable({ rows }: { rows: SubteamMonthly[] }) {
+  const months = [...new Set(rows.map(r => r.month))].sort()
+  const teams = [...new Set(rows.map(r => r.subteam))].sort()
+  const latest = months[months.length - 1]
+  const latestRows = rows.filter(r => r.month === latest)
+    .sort((a, b) => b.total - a.total)
+
+  return (
+    <div className={styles.subteamTableWrap}>
+      <div className={styles.chartTitle}>Subteam Summary (Latest Month: {latest})</div>
+      <table className={styles.subteamTable}>
+        <thead>
+          <tr>
+            <th>Subteam</th>
+            <th>Total</th>
+            <th>Bugs</th>
+            <th>Support</th>
+            <th>Resolved</th>
+            <th>Resolve%</th>
+            <th>SLA Pass</th>
+          </tr>
+        </thead>
+        <tbody>
+          {latestRows.map(r => (
+            <tr key={r.subteam}>
+              <td>{r.subteam}</td>
+              <td>{r.total}</td>
+              <td>{r.bugs}</td>
+              <td>{r.support}</td>
+              <td>{r.resolved}</td>
+              <td>{r.total > 0 ? Math.round(r.resolved / r.total * 100) : 0}%</td>
+              <td>{r.bugs > 0 ? Math.round(r.slaPass / r.bugs * 100) : '--'}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className={styles.tableNote}>Showing {latestRows.length} subteams | All months: {months.length}</div>
     </div>
   )
 }
@@ -133,7 +222,8 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
 
   const { overall, pst, charts } = data
 
-  // -- Chart data --
+  // --- Chart datasets ---
+
   const bugMonthData = {
     labels: charts.bugsByMonth.map(d => d.month.slice(5)),
     datasets: [{ label: 'Bug/month', data: charts.bugsByMonth.map(d => d.count), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.12)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#a78bfa' }],
@@ -159,12 +249,37 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
     ],
   }
 
+  // Subteam monthly: grouped bars, one dataset per subteam, showing total per month
+  const subteamNames = [...new Set(charts.subteamMonthly.map(r => r.subteam))].sort()
+  const subteamMonths = [...new Set(charts.subteamMonthly.map(r => r.month))].sort().slice(-6)
+  const subteamMonthlyData = {
+    labels: subteamMonths.map(m => m.slice(5)),
+    datasets: subteamNames.slice(0, 8).map((team, idx) => ({
+      label: team.length > 14 ? team.slice(0, 13) + '...' : team,
+      data: subteamMonths.map(month => {
+        const row = charts.subteamMonthly.find(r => r.month === month && r.subteam === team)
+        return row?.total ?? 0
+      }),
+      backgroundColor: SUBTEAM_COLORS[idx % SUBTEAM_COLORS.length] + 'cc',
+      borderRadius: 2,
+    })),
+  }
+
+  // RC month with ratio line
   const rcMonthData = {
     labels: charts.resolvedVsCreatedByMonth.map(d => d.month.slice(5)),
     datasets: [
-      { label: 'Created', data: charts.resolvedVsCreatedByMonth.map(d => d.created), backgroundColor: 'rgba(167,139,250,0.7)', borderRadius: 3 },
-      { label: 'Resolved', data: charts.resolvedVsCreatedByMonth.map(d => d.resolved), backgroundColor: 'rgba(45,212,160,0.7)', borderRadius: 3 },
+      { label: 'Created', data: charts.resolvedVsCreatedByMonth.map(d => d.created), backgroundColor: 'rgba(167,139,250,0.7)', borderRadius: 3, type: 'bar' as const },
+      { label: 'Resolved', data: charts.resolvedVsCreatedByMonth.map(d => d.resolved), backgroundColor: 'rgba(45,212,160,0.7)', borderRadius: 3, type: 'bar' as const },
+      { label: 'R/C Ratio', data: charts.resolvedVsCreatedByMonth.map(d => d.ratio), borderColor: '#f7c04f', backgroundColor: 'transparent', type: 'line' as const, tension: 0.4, pointRadius: 4, yAxisID: 'y1' },
     ],
+  }
+  const rcMonthOpts = {
+    ...CHART_BASE,
+    scales: {
+      ...CHART_BASE.scales,
+      y1: { position: 'right' as const, ticks: { color: '#7c84a0', font: { family: 'Be Vietnam Pro', size: 10 } }, grid: { drawOnChartArea: false } },
+    },
   }
 
   const rcWeekData = {
@@ -172,7 +287,15 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
     datasets: [
       { label: 'Created', data: charts.resolvedVsCreatedByWeek.map(d => d.created), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
       { label: 'Resolved', data: charts.resolvedVsCreatedByWeek.map(d => d.resolved), borderColor: '#2dd4a0', backgroundColor: 'rgba(45,212,160,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+      { label: 'R/C Ratio', data: charts.resolvedVsCreatedByWeek.map(d => d.ratio), borderColor: '#f7c04f', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderDash: [4, 3], yAxisID: 'y1' },
     ],
+  }
+  const rcWeekOpts = {
+    ...CHART_BASE,
+    scales: {
+      ...CHART_BASE.scales,
+      y1: { position: 'right' as const, ticks: { color: '#7c84a0', font: { family: 'Be Vietnam Pro', size: 10 } }, grid: { drawOnChartArea: false } },
+    },
   }
 
   const pvpData = {
@@ -180,6 +303,39 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
     datasets: [
       { label: 'Pending', data: charts.persistentVsPending.map(d => d.pending), backgroundColor: 'rgba(79,142,247,0.7)', borderRadius: 3 },
       { label: 'Persistent >14d', data: charts.persistentVsPending.map(d => d.persistent), backgroundColor: 'rgba(247,96,95,0.7)', borderRadius: 3 },
+    ],
+  }
+
+  // WIP per assignee (horizontal bar)
+  const wipData = {
+    labels: charts.wipPerAssignee.map(w => w.assignee.length > 14 ? w.assignee.slice(0, 13) + '...' : w.assignee),
+    datasets: [
+      { label: 'Bug', data: charts.wipPerAssignee.map(w => w.bugs), backgroundColor: 'rgba(167,139,250,0.8)', borderRadius: 3 },
+      { label: 'Support', data: charts.wipPerAssignee.map(w => w.support), backgroundColor: 'rgba(45,212,160,0.8)', borderRadius: 3 },
+    ],
+  }
+  const wipOpts = {
+    ...CHART_BASE,
+    indexAxis: 'y' as const,
+    scales: {
+      x: { ...CHART_BASE.scales.x, stacked: true },
+      y: { ...CHART_BASE.scales.y, stacked: true },
+    },
+  }
+
+  // Cycle time dual-line
+  const ctWeekData = {
+    labels: charts.cycleTimeByWeek.map(d => d.period.slice(5)),
+    datasets: [
+      { label: 'Bug CT (days)', data: charts.cycleTimeByWeek.map(d => d.bugCycleTime), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+      { label: 'Support CT (days)', data: charts.cycleTimeByWeek.map(d => d.supportCycleTime), borderColor: '#2dd4a0', backgroundColor: 'rgba(45,212,160,0.1)', fill: true, tension: 0.4, pointRadius: 3 },
+    ],
+  }
+  const ctMonthData = {
+    labels: charts.cycleTimeByMonth.map(d => d.period.slice(5)),
+    datasets: [
+      { label: 'Bug CT (days)', data: charts.cycleTimeByMonth.map(d => d.bugCycleTime), borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.12)', fill: true, tension: 0.4, pointRadius: 4 },
+      { label: 'Support CT (days)', data: charts.cycleTimeByMonth.map(d => d.supportCycleTime), borderColor: '#2dd4a0', backgroundColor: 'rgba(45,212,160,0.12)', fill: true, tension: 0.4, pointRadius: 4 },
     ],
   }
 
@@ -202,21 +358,21 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
 
       {/* OVERALL */}
       <SectionHeading title="OVERALL" />
-      <BugRow m={overall.bugs} />
-      <SupportRow m={overall.support} />
+      <BugRow m={overall.bugs} title="Production Bugs" />
+      <SupportRow m={overall.support} title="Support Tickets" />
 
       {/* PST */}
-      <SectionHeading title="PST" />
-      <BugRow m={pst.bugs} />
-      <SupportRow m={pst.support} />
+      <SectionHeading title="PST SUBTEAM" />
+      <BugRow m={pst.bugs} title="Production Bugs" />
+      <SupportRow m={pst.support} title="Support Tickets" />
       <DailyRow m={pst.daily} />
 
       {/* BUG CROSS SECTION */}
-      <SectionHeading title="BUG CROSS SECTION" />
+      <SectionHeading title="BUG ANALYSIS" />
 
       <div className={styles.chartRow}>
         <div className={`${styles.chartCard} ${styles.chartFull}`}>
-          <div className={styles.chartTitle}>Subteam Performance</div>
+          <div className={styles.chartTitle}>Subteam Performance (All time)</div>
           <div className={styles.chartWrap} style={{ height: 220 }}>
             <Bar data={subteamData} options={CHART_BASE as never} />
           </div>
@@ -231,7 +387,7 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
           </div>
         </div>
         <div className={styles.chartCard} style={{ flex: 1 }}>
-          <div className={styles.chartTitle}>Bug trend by week</div>
+          <div className={styles.chartTitle}>Bug trend by week (last 12w)</div>
           <div className={styles.chartWrap}>
             <Line data={bugWeekData} options={CHART_BASE as never} />
           </div>
@@ -244,23 +400,60 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
         </div>
       </div>
 
+      {/* SUBTEAM MONTHLY */}
+      <SectionHeading title="SUBTEAM MONTHLY BREAKDOWN" />
+      <div className={styles.chartRow}>
+        <div className={`${styles.chartCard} ${styles.chartFull}`}>
+          <div className={styles.chartTitle}>Tickets per subteam by month (last 6 months)</div>
+          <div className={styles.chartWrap} style={{ height: 240 }}>
+            <Bar data={subteamMonthlyData} options={CHART_BASE as never} />
+          </div>
+        </div>
+      </div>
+      {charts.subteamMonthly.length > 0 && <SubteamTable rows={charts.subteamMonthly} />}
+
+      {/* RESOLVED vs CREATED */}
+      <SectionHeading title="RESOLVED vs CREATED" />
       <div className={styles.chartRow}>
         <div className={styles.chartCard} style={{ flex: 1 }}>
-          <div className={styles.chartTitle}>Resolved vs Created ratio (Month)</div>
+          <div className={styles.chartTitle}>Resolved / Created (Month) + R/C ratio line</div>
           <div className={styles.chartWrap}>
-            <Bar data={rcMonthData} options={CHART_BASE as never} />
+            <Bar data={rcMonthData as never} options={rcMonthOpts as never} />
           </div>
         </div>
         <div className={styles.chartCard} style={{ flex: 1 }}>
-          <div className={styles.chartTitle}>Resolved / Created (Week)</div>
+          <div className={styles.chartTitle}>Resolved / Created (Week) + R/C ratio line</div>
           <div className={styles.chartWrap}>
-            <Line data={rcWeekData} options={CHART_BASE as never} />
+            <Line data={rcWeekData as never} options={rcWeekOpts as never} />
           </div>
         </div>
         <div className={styles.chartCard} style={{ flex: 1 }}>
-          <div className={styles.chartTitle}>Persistent &amp; Pending Bug</div>
+          <div className={styles.chartTitle}>Persistent and Pending Bugs</div>
           <div className={styles.chartWrap}>
             <Bar data={pvpData} options={CHART_BASE as never} />
+          </div>
+        </div>
+      </div>
+
+      {/* WIP + CYCLE TIME */}
+      <SectionHeading title="WIP AND CYCLE TIME" />
+      <div className={styles.chartRow}>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>WIP per assignee (open tickets)</div>
+          <div className={styles.chartWrap} style={{ height: 280 }}>
+            <Bar data={wipData} options={wipOpts as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Cycle time by week (avg days)</div>
+          <div className={styles.chartWrap}>
+            <Line data={ctWeekData} options={CHART_BASE as never} />
+          </div>
+        </div>
+        <div className={styles.chartCard} style={{ flex: 1 }}>
+          <div className={styles.chartTitle}>Cycle time by month (avg days)</div>
+          <div className={styles.chartWrap}>
+            <Line data={ctMonthData} options={CHART_BASE as never} />
           </div>
         </div>
       </div>
