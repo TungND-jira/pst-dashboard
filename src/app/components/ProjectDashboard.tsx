@@ -130,7 +130,6 @@ function DailyRow({ m }: { m: DailyMetrics }) {
 
 function SubteamTable({ rows }: { rows: SubteamMonthly[] }) {
   const months = Array.from(new Set(rows.map(r => r.month))).sort()
-  const teams = Array.from(new Set(rows.map(r => r.subteam))).sort()
   const latest = months[months.length - 1]
   const latestRows = rows.filter(r => r.month === latest)
     .sort((a, b) => b.total - a.total)
@@ -456,4 +455,7 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
             <Line data={ctMonthData} options={CHART_BASE as never} />
           </div>
         </div>
-  
+      </div>
+    </div>
+  )
+}
