@@ -469,7 +469,7 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
         <div className={`${styles.chartCard} ${styles.chartFull}`}>
           <div className={styles.chartTitle}>Subteam Performance by Month — Bugs Resolved vs Pending (bars) · SLA Pass % (line)</div>
           <div className={styles.chartWrap} style={{ height: 300 }}>
-            <Bar data={subteamMonthlyData} options={subteamMonthlyOpts as never} />
+            <Bar data={subteamMonthlyData as never} options={subteamMonthlyOpts as never} />
           </div>
         </div>
       </div>
