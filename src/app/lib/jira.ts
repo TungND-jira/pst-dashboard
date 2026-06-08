@@ -129,6 +129,7 @@ export interface SubteamMonthly {
   bugs: number
   support: number
   resolved: number
+  resolvedBugs: number
   total: number
   slaPass: number
 }
@@ -442,12 +443,15 @@ function computeChartData(allIssues: JiraIssue[], bugs: JiraIssue[], getSubteam:
     const team = getSubteam(i)
     const month = getMonthKey(i.fields.created)
     const key = `${month}|${team}`
-    if (!smMap[key]) smMap[key] = { month, subteam: team, bugs: 0, support: 0, resolved: 0, total: 0, slaPass: 0 }
+    if (!smMap[key]) smMap[key] = { month, subteam: team, bugs: 0, support: 0, resolved: 0, resolvedBugs: 0, total: 0, slaPass: 0 }
     const e = smMap[key]
     e.total++
     if (BUG_TYPES.has(i.fields.issuetype?.name)) {
       e.bugs++
-      if (i.fields.status?.statusCategory?.key === 'done' && !isSlaBreach(i)) e.slaPass++
+      if (i.fields.status?.statusCategory?.key === 'done') {
+        e.resolvedBugs++
+        if (!isSlaBreach(i)) e.slaPass++
+      }
     } else {
       e.support++
     }

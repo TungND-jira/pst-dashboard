@@ -248,20 +248,84 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
     ],
   }
 
-  // Subteam monthly: grouped bars, one dataset per subteam, showing total per month
+  // Subteam monthly: grouped stacked bars (Resolved + Pending per team) + SLA line
   const subteamNames = Array.from(new Set(charts.subteamMonthly.map(r => r.subteam))).sort()
   const subteamMonths = Array.from(new Set(charts.subteamMonthly.map(r => r.month))).sort().slice(-6)
+
+  const subteamBarDatasets = subteamNames.slice(0, 8).flatMap((team, idx) => {
+    const color = SUBTEAM_COLORS[idx % SUBTEAM_COLORS.length]
+    const shortName = team.length > 14 ? team.slice(0, 13) + '…' : team
+    return [
+      {
+        label: shortName + ' Resolved',
+        data: subteamMonths.map(month => {
+          const row = charts.subteamMonthly.find(r => r.month === month && r.subteam === team)
+          return row?.resolvedBugs ?? 0
+        }),
+        backgroundColor: color + 'cc',
+        borderRadius: 2,
+        stack: `team-${idx}`,
+        type: 'bar' as const,
+      },
+      {
+        label: shortName + ' Pending',
+        data: subteamMonths.map(month => {
+          const row = charts.subteamMonthly.find(r => r.month === month && r.subteam === team)
+          return Math.max(0, (row?.bugs ?? 0) - (row?.resolvedBugs ?? 0))
+        }),
+        backgroundColor: color + '40',
+        borderRadius: 2,
+        stack: `team-${idx}`,
+        type: 'bar' as const,
+      },
+    ]
+  })
+
+  const slaLineByMonth = subteamMonths.map(month => {
+    const rows = charts.subteamMonthly.filter(r => r.month === month)
+    const totalSlaPass = rows.reduce((s, r) => s + r.slaPass, 0)
+    const totalResolved = rows.reduce((s, r) => s + r.resolvedBugs, 0)
+    return totalResolved > 0 ? Math.round(totalSlaPass / totalResolved * 100) : null
+  })
+
   const subteamMonthlyData = {
-    labels: subteamMonths.map(m => m.slice(5)),
-    datasets: subteamNames.slice(0, 8).map((team, idx) => ({
-      label: team.length > 14 ? team.slice(0, 13) + '...' : team,
-      data: subteamMonths.map(month => {
-        const row = charts.subteamMonthly.find(r => r.month === month && r.subteam === team)
-        return row?.total ?? 0
-      }),
-      backgroundColor: SUBTEAM_COLORS[idx % SUBTEAM_COLORS.length] + 'cc',
-      borderRadius: 2,
-    })),
+    labels: subteamMonths.map(m => {
+      const d = new Date(m + '-01')
+      return d.toLocaleString('en', { month: 'short', year: '2-digit' })
+    }),
+    datasets: [
+      ...subteamBarDatasets,
+      {
+        label: 'SLA Pass %',
+        data: slaLineByMonth,
+        type: 'line' as const,
+        borderColor: '#f7c04f',
+        backgroundColor: 'transparent',
+        tension: 0.4,
+        pointRadius: 5,
+        pointBackgroundColor: '#f7c04f',
+        borderWidth: 2,
+        yAxisID: 'y1',
+        order: 0,
+      },
+    ],
+  }
+  const subteamMonthlyOpts = {
+    ...CHART_BASE,
+    scales: {
+      ...CHART_BASE.scales,
+      y1: {
+        position: 'right' as const,
+        min: 0,
+        max: 100,
+        ticks: {
+          color: '#7c84a0',
+          font: { family: 'Be Vietnam Pro', size: 10 },
+          callback: (v: number | string) => v + '%',
+        },
+        grid: { drawOnChartArea: false },
+      },
+    },
   }
 
   // RC month with ratio line
@@ -403,9 +467,9 @@ export default function ProjectDashboard({ apiPath }: { apiPath: string; project
       <SectionHeading title="SUBTEAM MONTHLY BREAKDOWN" />
       <div className={styles.chartRow}>
         <div className={`${styles.chartCard} ${styles.chartFull}`}>
-          <div className={styles.chartTitle}>Tickets per subteam by month (last 6 months)</div>
-          <div className={styles.chartWrap} style={{ height: 240 }}>
-            <Bar data={subteamMonthlyData} options={CHART_BASE as never} />
+          <div className={styles.chartTitle}>Subteam Performance by Month — Bugs Resolved vs Pending (bars) · SLA Pass % (line)</div>
+          <div className={styles.chartWrap} style={{ height: 300 }}>
+            <Bar data={subteamMonthlyData} options={subteamMonthlyOpts as never} />
           </div>
         </div>
       </div>
